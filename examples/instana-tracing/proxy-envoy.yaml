@@ -1,0 +1,59 @@
+static_resources:
+  listeners:
+  - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 80
+    filter_chains:
+    - filters:
+      - name: envoy.http_connection_manager
+        config:
+          tracing:
+            operation_name: ingress
+          codec_type: auto
+          stat_prefix: ingress_http
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: hello-docker
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: hello-docker
+                decorator:
+                  operation: hello-world
+          http_filters:
+          - name: envoy.router
+            config: {}
+  clusters:
+  - name: hello-docker
+    connect_timeout: 0.250s
+    type: strict_dns
+    lb_policy: round_robin
+    hosts:
+    - socket_address:
+        address: hello-docker
+        port_value: 8080
+  - name: instana-agent
+    connect_timeout: 1s
+    type: strict_dns
+    lb_policy: round_robin
+    hosts:
+    - socket_address:
+        address: instana-agent
+        port_value: 42699
+tracing:
+  http:
+    name: envoy.zipkin
+    config:
+      collector_cluster: instana-agent
+      collector_endpoint: "/api/v2/spans"
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8001

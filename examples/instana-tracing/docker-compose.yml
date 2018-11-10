@@ -1,0 +1,67 @@
+version: '2'
+services:
+
+  gateway-envoy:
+    build:
+      context: ../front-proxy
+      dockerfile: Dockerfile-frontenvoy
+    volumes:
+      - ./gateway-envoy.yaml:/etc/front-envoy.yaml
+    networks:
+      - envoymesh
+    expose:
+      - "80"
+      - "8001"
+    ports:
+      - "8080:80"
+      - "8001:8001"
+
+  proxy-envoy:
+    build:
+      context: ../front-proxy
+      dockerfile: Dockerfile-service
+    volumes:
+      - ./proxy-envoy.yaml:/etc/service-envoy.yaml
+    networks:
+      envoymesh:
+        aliases:
+          - proxy-envoy
+    environment:
+      - SERVICE_NAME=hello-docker-proxy
+    expose:
+      - "80"
+    ports:
+      - "8002:8001"
+
+  hello-docker:
+    build:
+      context: ./hello-docker
+      dockerfile: Dockerfile
+#    image: springio/gs-spring-boot-docker
+    networks:
+      envoymesh:
+        aliases:
+          - hello-docker
+    expose:
+      - "8080"
+
+  agent:
+    image: instana/agent
+    volumes:
+      - ./agent-logging-conf:/etc/org.ops4j.pax.logging.cfg
+    networks:
+      envoymesh:
+        aliases:
+          - instana-agent
+    environment:
+      - INSTANA_AGENT_ENDPOINT=<test tenant here>
+      - INSTANA_AGENT_ENDPOINT_PORT=444
+      - INSTANA_AGENT_KEY=<key>
+      - INSTANA_AGENT_ZONE=<zone>
+      - INSTANA_AGENT_TAGS=<tags>
+      - INSTANA_AGENT_HTTP_LISTEN=*
+    expose:
+      - "42699"
+
+networks:
+  envoymesh: {}
